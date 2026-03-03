@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JJK Character Forge</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:#0b0b0b;
+  color:white;
+}
+
+header{
+  background:#140000;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+  color:#ff2a2a;
+  border-bottom:2px solid #400000;
+}
+
+.stepper{
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  background:#111;
+  font-size:12px;
+}
+
+.step{
+  flex:1;
+  text-align:center;
+  opacity:0.4;
+}
+
+.step.active{
+  opacity:1;
+  color:#ff2a2a;
+  font-weight:bold;
+}
+
+.container{
+  padding:20px;
+}
+
+input, select, textarea, button{
+  width:100%;
+  padding:10px;
+  margin:8px 0;
+  border-radius:6px;
+  border:none;
+  font-size:14px;
+}
+
+button{
+  background:#b30000;
+  color:white;
+  cursor:pointer;
+}
+
+.card{
+  background:#161616;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:15px;
+  border:1px solid #300000;
+}
+
+.error{color:#ff5555;font-size:12px;}
+.preview{color:#ff8888;font-size:13px;}
+.hidden{display:none;}
+
+/* ===== PAPER OVERLAY ===== */
+
+.paper-overlay{
+  position:fixed;
+  inset:0;
+  background:#f4ecd8;
+  color:#222;
+  overflow:auto;
+  padding:40px;
+  font-family:Georgia, serif;
+  z-index:9999;
+}
+
+.paper-container{
+  max-width:900px;
+  margin:auto;
+  position:relative;
+}
+
+.paper-container h1{
+  border-bottom:2px solid #222;
+}
+
+.tracker-box{
+  border:1px solid #222;
+  padding:10px;
+  margin:10px 0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.occult-mark{
+  opacity:0.06;
+  font-size:140px;
+  position:absolute;
+  top:40%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+</style>
+</head>
+
+<body>
+
+<header>JJK Character Forge</header>
+
+<div class="stepper">
+  <div class="step active" id="stepIndicator1">Identity</div>
+  <div class="step" id="stepIndicator2">Stats</div>
+  <div class="step" id="stepIndicator3">Techniques</div>
+  <div class="step" id="stepIndicator4">Limitation</div>
+  <div class="step" id="stepIndicator5">Domain</div>
+  <div class="step" id="stepIndicator6">Sheet</div>
+</div>
+
+<div class="container">
+
+<!-- STEP 1 -->
+<div id="step1">
+  <div class="card">
+    <h3>Identity</h3>
+    Name <input id="charName">
+    Rank
+    <select id="charRank">
+      <option value="">Select Rank</option>
+      <option>Grade 2</option>
+      <option>Grade 1</option>
+      <option>Special Grade</option>
+    </select>
+    Origin
+    <select id="charOrigin">
+      <option value="">Select Origin</option>
+      <option>Urban Sorcerer</option>
+      <option>Shrine Lineage</option>
+      <option>Ex-Military Vessel</option>
+      <option>Curse Researcher</option>
+      <option>Independent Contractor</option>
+    </select>
+    <p id="idError" class="error"></p>
+  </div>
+  <button onclick="validateIdentity()">Next</button>
+</div>
+
+<!-- STEP 2 -->
+<div id="step2" class="hidden">
+  <div class="card">
+    <h3>Stats (6 Points Total)</h3>
+    Body <input type="number" id="statBody" min="0" max="3" value="0">
+    Technique <input type="number" id="statTech" min="0" max="3" value="0">
+    Mind <input type="number" id="statMind" min="0" max="3" value="0">
+    Presence <input type="number" id="statPresence" min="0" max="3" value="0">
+
+    <p>Total Used: <span id="statTotal">0</span>/6</p>
+    <p>Max CE: <span id="calcCE">10</span></p>
+    <p>Surge Cap: <span id="calcSurge">0</span></p>
+    <p>Reinforcement: <span id="calcReinforce">0</span></p>
+    <p id="statError" class="error"></p>
+  </div>
+  <button onclick="goToStep(1)">Back</button>
+  <button onclick="validateStats()">Next</button>
+</div>
+
+<!-- STEP 3 -->
+<div id="step3" class="hidden">
+  <div class="card">
+    <h3>Cursed Techniques</h3>
+    Name <input id="effectName">
+    Tier
+    <select id="effectTier" onchange="updateCEPreview()">
+      <option value="">Select</option>
+      <option value="1">Basic (1 TP)</option>
+      <option value="2">Advanced (2 TP)</option>
+      <option value="3">Major (3 TP)</option>
+    </select>
+    <div id="cePreview" class="preview"></div>
+    Description <textarea id="effectDesc"></textarea>
+    <button onclick="addEffect()">Add</button>
+
+    <div id="effectList"></div>
+
+    <p>Refund TP: <span id="refundTP">0</span></p>
+    <p>Available TP: <span id="availableTP">6</span></p>
+    <p>Used TP: <span id="usedTP">0</span></p>
+    <p id="techError" class="error"></p>
+  </div>
+  <button onclick="goToStep(2)">Back</button>
+  <button onclick="validateTechnique()">Next</button>
+</div>
+
+<!-- STEP 4 -->
+<div id="step4" class="hidden">
+  <div class="card">
+    <h3>Global Limitation</h3>
+    <select id="limitSeverity" onchange="updateLimitationPreview()">
+      <option value="0">None</option>
+      <option value="1">Minor (+1 TP)</option>
+      <option value="2">Major (+2 TP)</option>
+      <option value="3">Extreme (+3 TP)</option>
+    </select>
+    <textarea id="limitDesc"></textarea>
+    <div id="limitPreview" class="preview"></div>
+    <p id="limitError" class="error"></p>
+  </div>
+  <button onclick="goToStep(3)">Back</button>
+  <button onclick="validateLimitation()">Next</button>
+</div>
+
+<!-- STEP 5 -->
+<div id="step5" class="hidden">
+  <div class="card">
+    <h3>Domain Expansion</h3>
+    <input id="domainName" placeholder="Domain Name">
+    <textarea id="domainDesc" placeholder="Description"></textarea>
+    <p>Cost: 12 CE | Duration: 3 Rounds | +2 Strain</p>
+    <p id="domainError" class="error"></p>
+  </div>
+  <button onclick="goToStep(4)">Back</button>
+  <button onclick="validateDomain()">Next</button>
+</div>
+
+<!-- STEP 6 -->
+<div id="step6" class="hidden">
+  <div class="card" id="sheetCard"></div>
+  <button onclick="viewPaperSheet()">Paper Sheet</button>
+  <button onclick="saveCharacter()">Save Slot</button>
+  <button onclick="exportJSON()">Export JSON</button>
+  <input type="file" onchange="importJSON(event)">
+  <button onclick="goToStep(1)">Edit</button>
+</div>
+
+</div>
+
+<script>
+
+/* ===== NAVIGATION ===== */
+
+function goToStep(n){
+  for(let i=1;i<=6;i++){
+    document.getElementById("step"+i).style.display="none";
+    document.getElementById("stepIndicator"+i).classList.remove("active");
+  }
+  document.getElementById("step"+n).style.display="block";
+  document.getElementById("stepIndicator"+n).classList.add("active");
+}
+
+/* ===== CHARACTER DATA ===== */
+
+let character={effects:[],refundTP:0};
+
+/* ===== STEP 1 ===== */
+
+function validateIdentity(){
+  if(!charName.value||!charRank.value||!charOrigin.value){
+    idError.innerText="All fields required.";
+    return;
+  }
+  idError.innerText="";
+  goToStep(2);
+}
+
+/* ===== STEP 2 ===== */
+
+document.querySelectorAll("#statBody,#statTech,#statMind,#statPresence")
+.forEach(e=>e.addEventListener("input",updateStats));
+
+function updateStats(){
+  const b=+statBody.value||0;
+  const t=+statTech.value||0;
+  const m=+statMind.value||0;
+  const p=+statPresence.value||0;
+  const total=b+t+m+p;
+
+  statTotal.innerText=total;
+  calcCE.innerText=10+(t*5);
+  calcSurge.innerText=t*2;
+  calcReinforce.innerText=Math.ceil(b/2);
+}
+
+function validateStats(){
+  if(+statTotal.innerText!==6){
+    statError.innerText="Use exactly 6 points.";
+    return;
+  }
+  statError.innerText="";
+  goToStep(3);
+}
+
+/* ===== CE SYSTEM ===== */
+
+function getBaseCECost(t){
+  return t==1?2:t==2?5:t==3?8:0;
+}
+
+function updateCEPreview(){
+  const t=+effectTier.value;
+  if(!t){cePreview.innerText="";return;}
+  cePreview.innerText="CE Cost: "+(getBaseCECost(t)+character.refundTP);
+}
+
+/* ===== TECHNIQUES ===== */
+
+function addEffect(){
+  if(!effectName.value||!effectTier.value||!effectDesc.value)return;
+  character.effects.push({
+    name:effectName.value,
+    tier:+effectTier.value,
+    desc:effectDesc.value
+  });
+  renderEffects();
+}
+
+function renderEffects(){
+  effectList.innerHTML="";
+  let used=0;
+  character.effects.forEach((e,i)=>{
+    used+=e.tier;
+    effectList.innerHTML+=`
+      <div class="card">
+        <b>${e.name}</b><br>
+        CE: ${getBaseCECost(e.tier)+character.refundTP}<br>
+        ${e.desc}
+        <button onclick="removeEffect(${i})">Remove</button>
+      </div>`;
+  });
+  usedTP.innerText=used;
+  availableTP.innerText=6+character.refundTP;
+}
+
+function removeEffect(i){
+  character.effects.splice(i,1);
+  renderEffects();
+}
+
+function validateTechnique(){
+  if(+usedTP.innerText!==6+character.refundTP){
+    techError.innerText="Must use all TP.";
+    return;
+  }
+  techError.innerText="";
+  goToStep(4);
+}
+
+/* ===== LIMITATION ===== */
+
+function updateLimitationPreview(){
+  character.refundTP=+limitSeverity.value;
+  refundTP.innerText=character.refundTP;
+  availableTP.innerText=6+character.refundTP;
+  renderEffects();
+}
+
+function validateLimitation(){
+  if(+limitSeverity.value>0&&!limitDesc.value){
+    limitError.innerText="Describe limitation.";
+    return;
+  }
+  character.limitation={severity:+limitSeverity.value,desc:limitDesc.value};
+  limitError.innerText="";
+  goToStep(5);
+}
+
+/* ===== DOMAIN ===== */
+
+function validateDomain(){
+  if(!domainName.value||!domainDesc.value){
+    domainError.innerText="Required.";
+    return;
+  }
+  character.domain={name:domainName.value,desc:domainDesc.value};
+  buildSheet();
+  goToStep(6);
+}
+
+/* ===== SHEET ===== */
+
+function buildSheet(){
+  sheetCard.innerHTML=`
+    <h2>${charName.value}</h2>
+    <b>${charRank.value}</b> | ${charOrigin.value}<br><br>
+    <h3>Stats</h3>
+    Body: ${statBody.value}<br>
+    Technique: ${statTech.value}<br>
+    Mind: ${statMind.value}<br>
+    Presence: ${statPresence.value}<br>
+    Max CE: ${calcCE.innerText}<br><br>
+    <h3>Techniques</h3>
+    ${character.effects.map(e=>`
+      <div><b>${e.name}</b> (CE ${getBaseCECost(e.tier)+character.refundTP})
+      <p>${e.desc}</p></div>`).join("")}
+    <h3>Domain</h3>
+    <b>${character.domain.name}</b>
+    <p>${character.domain.desc}</p>
+  `;
+}
+
+/* ===== PAPER SHEET ===== */
+
+function viewPaperSheet(){
+  const overlay=document.createElement("div");
+  overlay.className="paper-overlay";
+  const ceBase=10+(+statTech.value*5);
+
+  overlay.innerHTML=`
+    <div class="paper-container">
+      <div class="occult-mark">呪</div>
+      <h1>${charName.value}</h1>
+      <p>${charRank.value} | ${charOrigin.value}</p>
+
+      <div class="tracker-box">
+        <div><b>CE:</b> <span id="paperCE">${ceBase}</span></div>
+        <div>
+          <button onclick="adjustCE(-1)">-</button>
+          <button onclick="adjustCE(1)">+</button>
+        </div>
+      </div>
+
+      <div class="tracker-box">
+        <div><b>Strain:</b> <span id="paperStrain">0</span></div>
+        <div>
+          <button onclick="adjustStrain(-1)">-</button>
+          <button onclick="adjustStrain(1)">+</button>
+        </div>
+      </div>
+
+      <hr>
+      <h2>Techniques</h2>
+      ${character.effects.map(e=>`
+        <div><b>${e.name}</b> (CE ${getBaseCECost(e.tier)+character.refundTP})
+        <p>${e.desc}</p></div>`).join("")}
+
+      <hr>
+      <button onclick="window.print()">Print</button>
+      <button onclick="this.closest('.paper-overlay').remove()">Close</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+function adjustCE(n){
+  const el=document.getElementById("paperCE");
+  let v=+el.innerText+n;
+  if(v<0)v=0;
+  el.innerText=v;
+}
+
+function adjustStrain(n){
+  const el=document.getElementById("paperStrain");
+  let v=+el.innerText+n;
+  if(v<0)v=0;
+  el.innerText=v;
+}
+
+/* ===== SAVE / LOAD / JSON ===== */
+
+function saveCharacter(){
+  const name=charName.value||"Unnamed";
+  localStorage.setItem("jjk_"+name,JSON.stringify({
+    name:charName.value,
+    rank:charRank.value,
+    origin:charOrigin.value,
+    body:statBody.value,
+    tech:statTech.value,
+    mind:statMind.value,
+    presence:statPresence.value,
+    character
+  }));
+  alert("Saved as "+name);
+}
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({
+    name:charName.value,
+    rank:charRank.value,
+    origin:charOrigin.value,
+    body:statBody.value,
+    tech:statTech.value,
+    mind:statMind.value,
+    presence:statPresence.value,
+    character
+  },null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=charName.value+"_jjk.json";
+  a.click();
+}
+
+function importJSON(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const s=JSON.parse(ev.target.result);
+    charName.value=s.name;
+    charRank.value=s.rank;
+    charOrigin.value=s.origin;
+    statBody.value=s.body;
+    statTech.value=s.tech;
+    statMind.value=s.mind;
+    statPresence.value=s.presence;
+    updateStats();
+    character=s.character;
+    renderEffects();
+  };
+  reader.readAsText(file);
+}
+
+</script>
+</body>
+</html>
